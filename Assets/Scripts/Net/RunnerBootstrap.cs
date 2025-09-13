@@ -1,137 +1,50 @@
-using Fusion;
-using Fusion.Sockets;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-
+using Fusion;
+using Fusion.Sockets;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
-public class RunnerBootstrap : MonoBehaviour, INetworkRunnerCallbacks
+public class RunnerBootstrap : MonoBehaviour
 {
-    [SerializeField] private NetworkObject playerPrefab;
+    [Header("References")]
+    [SerializeField] private NetworkRunner runnerPrefab;    // Runner 프리팹 참조
+    [SerializeField] private NetworkObject playerPrefab;    // Player 프리팹 참조
 
-    NetworkRunner _runner;
+    public string SessionName = "world-001";
+    public int MaxPlayers = 100;
+
+    [Header("Scene")]
+    public SceneRef mainScene;                              // 빌드 세팅 Scene 인덱스 기반
+
+    NetworkRunner runner;
 
     async void Start()
     {
-        _runner = gameObject.AddComponent<NetworkRunner>();
-        _runner.ProvideInput = Application.platform != RuntimePlatform.LinuxServer;  // 서버는 입력 제공하지 않음
+        // 단일 인스턴스 보장
+        if (FindObjectOfType<NetworkRunner>())              
+            return;
 
-        var sceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>();
-        var gameStartArgs = new StartGameArgs
+        // 커맨드라인 파싱
+        var args = Environment.GetCommandLineArgs();
+        // 기본값 : 에디터/스탠드얼론은 클라, 서버빌드/배치모드면 서버
+        var isServer = Application.isBatchMode || Application.platform == RuntimePlatform.LinuxServer;
+
+        for (int i = 0; i < args.Length; i++)
         {
-            GameMode = Application.platform == RuntimePlatform.LinuxServer ? GameMode.Server : GameMode.Client,
-            SessionName = "room-1",
-            Scene = SceneRef.FromIndex(1),      // 1번씬 == Game
-            SceneManager = sceneManager
-        };
+            if (args[i] == "-mode" && i + 1 < args.Length)
+            {
+                var val = args[i + 1].ToLowerInvariant();
+                if (val == "server")
+                    isServer = true;
+                else if (val == "client")
+                    isServer = false;
+            }
 
-        await _runner.StartGame(gameStartArgs);
+            if (args[i] == "-session" && i + 1 < args.Length)
+            {
+                SessionName = args[i + 1];
+            }
+        }
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
-
-
-    #region ## INetworkRunnerCallbacks
-
-    bool LeftHeld() => Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow);
-    bool RightHeld() => Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow);
-
-    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
-    {
-        if (!runner.IsServer) return;
-
-        var spawnPos = new Vector3(0, 2, 0);    // start position
-        runner.Spawn(playerPrefab, spawnPos, Quaternion.identity, player);
-    }
-
-    public void OnInput(NetworkRunner runner, NetworkInput input)
-    {
-        if (!runner.IsClient) return;
-
-        var data = new JumpInput();
-        var b = default(NetworkButtons);
-
-        if (LeftHeld()) b.Set(0, true);
-        if (RightHeld()) b.Set(1, true);
-        data.Buttons = b;
-        input.Set(data);
-    }
-
-    public void OnConnectedToServer(NetworkRunner runner)
-    {
-    }
-
-    public void OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason)
-    {
-    }
-
-    public void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token)
-    {
-    }
-
-    public void OnCustomAuthenticationResponse(NetworkRunner runner, Dictionary<string, object> data)
-    {
-    }
-
-    public void OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
-    {
-    }
-
-    public void OnHostMigration(NetworkRunner runner, HostMigrationToken hostMigrationToken)
-    {
-    }
-
-    public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input)
-    {
-    }
-
-    public void OnObjectEnterAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player)
-    {
-    }
-
-    public void OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player)
-    {
-    }
-
-
-    public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
-    {
-    }
-
-    public void OnReliableDataProgress(NetworkRunner runner, PlayerRef player, ReliableKey key, float progress)
-    {
-    }
-
-    public void OnReliableDataReceived(NetworkRunner runner, PlayerRef player, ReliableKey key, ArraySegment<byte> data)
-    {
-    }
-
-    public void OnSceneLoadDone(NetworkRunner runner)
-    {
-    }
-
-    public void OnSceneLoadStart(NetworkRunner runner)
-    {
-    }
-
-    public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList)
-    {
-    }
-
-    public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
-    {
-    }
-
-    public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message)
-    {
-    }
-
-    #endregion
 
 }
